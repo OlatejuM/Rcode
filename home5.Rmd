@@ -1,0 +1,99 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+
+
+library(ncvreg)
+library(glmnet)
+library(e1071)
+library(rpart)
+library(randomForest)
+library(readr)
+library(tidyr)
+library(dplyr)
+
+Data_C<- read_csv("C:/Users/maria/Downloads/Data_Cortex_Nuclear.csv")
+mice_d<- read_csv("C:/Users/maria/Downloads/mice-protein-expressions.csv")
+set.seed(525)
+
+###### A ############
+df = data.frame(Data_C)
+cln_d = df[-c(70,71,73,75,76,77)]
+cln_d = cln_d %>%drop_na()
+Y = cln_d$class
+clus_1 = kmeans(data.matrix(mice_d), 8)
+k_clus = clus_1$cluster
+ARI_k= adj.rand.index(Y, k_clus) # clustering result = 0.128938
+
+clus_2 = specc(data.matrix(mice_d), 8)
+S_clus = clus_2@.Data
+ARI_s= adj.rand.index(Y, S_clus) # clustering result = 0.215488
+
+
+
+d = dist(data.matrix(mice_d), method = "euclidean")
+clus_3 = hclust(d, method ="ward.D")
+grp = cutree(clus_3, k=8)
+ARI_h= adj.rand.index(Y, grp) # clustering result = 0.186486
+
+##################### B ############################
+D = data.matrix(mice_d)
+Cov_m = cov(D)
+cov = Cov_m
+lam = 4  # lamda parameter
+p = 71
+n = 1047
+r_conv = log(p)/n  ### uniform rate of convergence
+
+for (i in 1:71){
+  for (j in 1:71){
+    if (i != j){
+      lam_p= lam * sqrt(Cov_m[i,i]* Cov_m[j,j] * r_conv)
+      if (abs(Cov_m[i,j])< lam_p){
+        cov[i,j]=0
+      }
+    }
+    }
+}
+
+z_ent= which(cov ==0, arr.ind = TRUE) #report zero entries 2658
+#which(Cov_m == 0 ,arr.ind =TRUE)
+
+
+ev_est = eigen(cov) ### compute the eigenvalues of the resulting estimate
+max(ev_est$values)   ### maximum of the eigenvalues (2.225201)
+min(ev_est$values)  ### minimum of the eigenvalues (-0.05009198)
+
+
+ev_est1 = eigen(Cov_m) #### compute the eigenvalues of the input covariance matrix
+max(ev_est1$values)   ### maximum of the eigen values (2.26181)
+min(ev_est1$values)   #### minimum of the eigenvalues (-1.2453e-19)
+
+
+########### C########
+
+p=sugm(data.matrix(mice_d), method ='clime')
+
+p1=sugm(data.matrix(cov), method ='clime')
+######### D########
+qgraph(data.frame(p$icov[5]))
+
+qgraph(data.frame(p1$icov[5]))
