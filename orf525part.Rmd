@@ -1,0 +1,180 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+#####question 4####
+t_test <- read_csv("C:/Users/maria/Downloads/test.data.csv")
+t_data <- read_csv("C:/Users/maria/Downloads/train.data.csv")
+t_data_zip<- as.factor(t_data$zipcode)
+t_test_zip <- as.factor(t_test$zipcode)
+
+bath_r<- t_data[,6]
+bed_r = t_data[,5]
+sq_living = t_data[,7]
+sq_lot = t_data[,8]
+price = t_data[,4]
+
+b_r <- bath_r$bathrooms
+be_r<- bed_r$bedrooms
+s_li<- sq_living$sqft_living
+s_lo<- sq_lot$sqft_lot
+pr <- price$price
+
+########################### A ################################################
+
+fitted_ybar = lm(pr ~ b_r + be_r + s_li +s_lo,
+   data=t_data)
+summary(fitted_ybar)
+ybar_p = predict(fitted_ybar, newdata=t_data)
+y_ave = mean(ybar_p)
+
+bath_rt<- t_test[,6]
+bed_rt = t_test[,5]
+sq_livingt = t_test[,7]
+sq_lott = t_test[,8]
+price_t = t_test[,4]
+
+b_rt <- bath_rt$bathrooms
+be_rt<- bed_rt$bedrooms
+s_lit<- sq_livingt$sqft_living
+s_lot<- sq_lott$sqft_lot
+pr_t <- price_t$price
+
+
+
+fitted_y = lm(pr_t ~ b_rt + be_rt + s_lit +s_lot,
+   data=t_test)
+summary(fitted_y)
+yt_p = predict(fitted_y, newdata=t_test)
+
+yt_d =  (pr_t - yt_p)^2
+y_d = (pr_t - y_ave)^2
+R_sq = 1 - (sum(yt_d)/sum(y_d))  ## Out of sample R^2
+
+################################ B ###############################################
+
+x_t1 = b_rt * be_rt ##interactions
+x_t2 = b_rt * s_lit
+x_t3 = b_rt * s_lot
+x_t4 = be_rt * s_lit
+x_t5 = be_rt*s_lot
+x_t6 = s_lit * s_lot
+
+fitted_yn = lm(pr_t ~ b_rt + be_rt + s_lit +s_lot+x_t1 + x_t2+ x_t3+ x_t4+ x_t5+ x_t6,
+   data=t_test)
+summary(fitted_yn)
+yt_pn = predict(fitted_yn, newdata=t_test)
+
+x1 = b_r * be_r  # interactions
+x2 = b_r * s_li
+x3 = b_r * s_lo
+x4 = be_r * s_li
+x5 = be_r*s_lo
+x6 = s_li* s_lo
+
+fitted_yd = lm(pr~ b_r + be_r + s_li +s_lo+x1 + x2+ x3+ x4+ x5+ x6,
+   data=t_data)
+summary(fitted_yd)
+y_pn = predict(fitted_yd, newdata=t_data)
+yn_ave = mean(y_pn)
+
+################################### D ##########################################
+
+
+yt_dn =  (pr_t - yt_pn)^2
+y_dn = (pr_t - yn_ave)^2
+R_sq1 = 1 - (sum(yt_dn)/sum(y_dn))  ## Out of sample R^2
+
+fitted_ynz = lm(price ~ b_rt + be_rt + s_lit +s_lot+x_t1 + x_t2+ x_t3+ x_t4+ x_t5+ x_t6+t_test_zip,
+   data=t_test)
+summary(fitted_ynz)
+yt_pnz = predict(fitted_ynz, newdata=t_test)
+
+fitted_ydz = lm(pr~ b_r + be_r + s_li +s_lo+x1 + x2+ x3+ x4+ x5+ x6+t_data_zip,
+   data=t_data)
+summary(fitted_ydz)
+y_pnz = predict(fitted_ydz, newdata=t_data)
+yn_avez = mean(y_pnz)
+
+
+yt_dnz =  (pr_t - yt_pnz)^2
+y_dnz = (pr_t - yn_avez)^2
+R_sq1z = 1 - (sum(yt_dnz)/sum(y_dnz))  ## Out of sample R^2 with zipcode
+
+#################################### E ##########################################
+
+x12_y = t_test$view
+x12_d = t_data$view
+
+x12 = 1*(x12_d==0)
+
+x12s = 1*(x12_y==0)
+
+x13_t = (s_lit)^2
+x13_d = (s_li)^2
+m = length(s_li)
+n = length(s_lit)
+
+T = quantile(s_lit, probs = c(.1,.2,.3,.4,.5,.6,.7,.8,.9))
+M = matrix(0,n,9)
+for (j in 1:9) {
+    for (i in 1:n) {
+        if (s_lit[i] >T[j]){
+            M[i,j] = (s_lit[i]-T[j])^2
+        }
+      }
+   } 
+    
+T_d = quantile(s_li, probs = c(.1,.2,.3,.4,.5,.6,.7,.8,.9))
+M_d = matrix(0,m,9)
+for (j in 1:9) {
+    for (i in 1:m) {
+        if (s_li[i] >T_d[j]){
+            M_d[i,j] = (s_li[i]-T_d[j])^2
+        }
+      }
+   } 
+Zip = t_test$zipcode
+zip = t_data$zipcode
+new_test = cbind(b_rt,be_rt,s_lit,s_lot,Zip,x12s,M,x13_t)
+colnames(new_test)= list('batht','bedt','S_lit','S_lot','zipt','vt','at','bt','ct','dt','et','ft','gt','ht','it','LLt')
+new_test_data = data.frame(PriceT=pr_t, new_test)
+zipp = as.factor(new_test_data$zipt)
+
+new_data = cbind(b_r,be_r,s_li,s_lo,zip,x12,M_d,x13_d)
+colnames(new_data)= list('bath','bed','S_li','S_lo','Zip','v','a','b','c','d','e','f','g','h','i','LL')
+new_data_data = data.frame(Price=pr, new_data)
+zippt = as.factor(new_data_data$Zip)
+
+
+fitted_livt = lm(PriceT ~ batht + bedt + S_lit +S_lot+ batht:bedt + batht:S_lit+ bedt:S_lit+ bedt:S_lot+ batht:S_lot+ S_lit:S_lot+zipp+vt+at+bt+ct+dt+et+ft+gt+ht+it+LLt,
+   data=new_test_data)
+summary(fitted_livt)
+livt_p = predict(fitted_livt, newdata=new_test_data)
+
+fitted_liv = lm(Price~ bath + bed + S_li +S_lo+ bath:bed+ bath:S_li+ bed:S_li+ bed:S_lo+ bath:S_lo+ S_li:S_lo+zippt+v+a+b+c+d+e+f+g+h+i+LL,
+   data=new_data_data)
+summary(fitted_liv)
+liv_p = predict(fitted_liv, newdata=new_data_data)
+liv_ave = mean(liv_p)
+
+NUMER =  (pr_t- livt_p)^2
+denum = (pr_t- liv_ave)^2
+R_sqliv = 1 - (sum(NUMER)/sum(denum))  ## Out of sample R^2 with zipcode
+
