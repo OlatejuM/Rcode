@@ -1,0 +1,208 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+library(ncvreg)
+library(glmnet)
+library(e1071)
+library(rpart)
+library(randomForest)
+library(readr)
+data <- read_csv("C:/Users/maria/Downloads/spambase.data",col_names = FALSE)
+
+
+set.seed(525)
+
+Data = sort(sample(nrow(data), nrow(data)*(1000/4601))) #split the data
+train_data <- data[Data,]
+test_data <- data[-Data,]
+
+learn_x = train_data[,1:57]
+learn_y = train_data[,58]
+test_x = test_data[,1:57]
+test_y = test_data[,58]
+
+
+for (i in 1:1000){
+  if (learn_y$X58[i]==1 & learn_y$X58[i+1]==0){
+  k=i}
+}
+
+k = 394
+learn_y$X58[k]
+learn_y$X58[k-1]  
+
+spm_learn = learn_x[1:393,]
+
+spm_learni = learn_x[394:1000,]
+
+aug_learn = 0*matrix(1:57*1000, nrow = 1000, ncol=57)
+aug_test = 0*matrix(1:57*3601, nrow = 3601, ncol=57)
+
+
+
+for (i in 1:57){
+  dty_1 = density(data.matrix(spm_learn[,i]))
+  dty_2 = density(data.matrix(spm_learni[,i]))
+  for (j in 1:1000){
+    if (learn_x[j,i]>max(data.matrix(spm_learn[,i]))|learn_x[j,i]<min(data.matrix(spm_learn[,i]))){
+      a = 10^(-9)
+      }else{
+      a = approx(dty_1$x,dty_1$y, xout=data.matrix(learn_x[j,i]))$y+10^(-9)
+      }
+    if (learn_x[j,i]>max(data.matrix(spm_learni[,i]))|learn_x[j,i]<min(data.matrix(spm_learni[,i]))){
+      b = 10^(-9)
+      }else{
+      b = approx(dty_2$x,dty_2$y, xout=data.matrix(learn_x[j,i]))$y+10^(-9)
+      }
+      aug_learn[j,i]=log(a/b)
+  }
+  for (j in 1:3601){
+    if (test_x[j,i]>max(data.matrix(spm_learn[,i]))|test_x[j,i]<min(data.matrix(spm_learn[,i]))){
+      a = 10^(-9)
+      }else{
+      a = approx(dty_1$x,dty_1$y, xout=data.matrix(test_x[j,i]))$y+10^(-9)
+      }
+    if (test_x[j,i]>max(data.matrix(spm_learni[,i]))|test_x[j,i]<min(data.matrix(spm_learni[,i]))){
+      b = 10^(-9)
+      }else{
+      b = approx(dty_2$x,dty_2$y, xout=data.matrix(test_x[j,i]))$y+10^(-9)
+      }
+      aug_test[j,i]=log(a/b)
+  }
+}
+
+fitted_s = cv.ncvreg(learn_x, data.matrix(learn_y), family="binomial",penalty="SCAD")
+test_x1 = model.matrix(~.-1,test_x)
+Pre_y = predict(fitted_s, test_x1,type='response')
+T = data.matrix(test_y)
+
+for (i in 1:3601){
+  if (Pre_y[i]<0.5){
+    Pre_y[i]=0
+  } else {
+    Pre_y[i]=1
+  }
+}
+k=0
+for (i in 1:3601){
+  if (Pre_y[i]==T[i]){
+    k = k+1
+  }
+}
+
+err = 1- k/3601
+err
+
+# The missclassification rate (SCAD) is 0.09858
+
+fitted_s2 = cv.ncvreg(aug_learn, data.matrix(learn_y), family="binomial",penalty="SCAD")
+Pre_y2 = predict(fitted_s2, aug_test,type='response')
+
+T = data.matrix(test_y)
+for (i in 1:3601){
+  if (Pre_y2[i]<0.5){
+    Pre_y2[i]=0
+  } else {
+    Pre_y2[i]=1
+  }
+}
+k=0
+for (i in 1:3601){
+  if (Pre_y2[i]==T[i]){
+    k = k+1
+  }
+}
+
+err = 1- k/3601
+err
+# The missclassification rate (SCAD with augmented features) is 0.07
+
+######## C#######
+S = data.frame(aug_learn,learn_y)
+fitted_svm = svm(x = aug_learn, y = data.matrix(learn_y), kernel = "linear", type = "C-classification")
+Pre_y3 = predict(fitted_svm, aug_test,type='response')
+P = data.matrix(Pre_y3)
+g= as.numeric(P)
+T = data.matrix(test_y)
+for (i in 1:3601){
+  if (g[i]<0.5){
+    g[i]=0
+  } else {
+    g[i]=1
+  }
+}
+k=0
+for (i in 1:3601){
+  if (g[i]==T[i]){
+    k = k+1
+  }
+}
+
+err = 1- k/3601
+err
+# The missclassification rate (SCAD with augmented features) is 0.08
+
+
+#####
+fit = rpart(data.matrix(learn_y)~.,data=learn_x,cp=0.008)
+Pre_y4 = predict(fit, test_x)
+
+T = data.matrix(test_y)
+for (i in 1:3601){
+  if (Pre_y4[i]<0.5){
+    Pre_y4[i]=0
+  } else {
+    Pre_y4[i]=1
+  }
+}
+k=0
+for (i in 1:3601){
+  if (Pre_y4[i]==T[i]){
+    k = k+1
+  }
+}
+
+err = 1- k/3601
+err
+# The missclassification rate (CART) is 0.1235
+
+####E
+R=randomForest(data.matrix(learn_y)~.,data=learn_x, importance= TRUE, proximity=TRUE)
+Pre_y5= predict(R, test_x)
+
+T = data.matrix(test_y)
+for (i in 1:3601){
+  if (Pre_y5[i]<0.5){
+    Pre_y5[i]=0
+  } else {
+    Pre_y5[i]=1
+  }
+}
+k=0
+for (i in 1:3601){
+  if (Pre_y5[i]==T[i]){
+    k = k+1
+  }
+}
+
+err = 1- k/3601
+err
+# The missclassification rate (random forest) is 0.062204
